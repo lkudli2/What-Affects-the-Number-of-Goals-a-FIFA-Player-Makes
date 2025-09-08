@@ -1,0 +1,356 @@
+---
+title: "What affects the number of FIFA goals a player makes?"
+author: "Anav Vora and Lavanya Kudli"
+date: "12/5/2024"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+
+\textbf{\textcolor{blue}{Introduction}}
+
+Soccer is one of the most popular games enjoyed by everyone across many countries of the world. In any match, the engrossing tiki-takas lead up to the most gripping moment - the GOAL. To strategically plan the gameplay, understanding the factors that improve the chances of a goal is valuable to several stakeholders - the investors, the managers, and team members among others. In this study, we will carefully explore,assess, and evaluate the FIFA World Cup and the FIFA Womens World Cup that happened in 2018 and 2019 respectively. Apart from the number of goals scored, the data contains information on the team id, jersey number (no), position (pos), age-years (age-yrs), appearances in international tournaments (caps), clubs(club), player nationality (country), team group (group), and whether it was the male or female worldcup (WorldCup).
+
+In our study, we will consider the number of goals as the response, and among all these predictors, we will consider pos, age_yrs,caps,country, and WorldCup. Among the predictors, age_yrs and caps are continuous variables while pos,country, and WorldCup are categorical variables. 
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+FIFA_Data_Full = read.csv("soccer.csv")
+FIFA_Data = FIFA_Data_Full[,c(3,5,6,7,9,11)]
+```
+
+\medskip
+\textbf{\textcolor{blue}{Data Description}}
+
+We begin our analysis by conducting data exploration. 
+
+We first exclude all the players for whom data on the number of goals or potential predictors influencing the number of goals is missing.
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+FIFA_Data[,c(1,5,6)] <- lapply(FIFA_Data[,c(1,5,6)], as.factor)
+FIFA_Data = FIFA_Data[complete.cases(FIFA_Data),]
+```
+
+Next, we look at the distribution of factors that might be influencing the number of goals made by a player. 
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+library(ggplot2)
+library(ggpubr)
+f1 <- ggplot(FIFA_Data,aes(x=pos))+geom_bar()
+f2 <- ggplot(FIFA_Data,aes(x=age_yrs))+geom_histogram()
+f3 <- ggplot(FIFA_Data,aes(x=caps))+geom_histogram()
+f4 <- ggplot(FIFA_Data,aes(x=goals))+geom_histogram()
+f5 <- ggplot(FIFA_Data,aes(x=country))+geom_bar()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5,hjust=1))
+f6 <- ggplot(FIFA_Data,aes(x=WorldCup))+geom_bar()
+ggarrange(f1,f2,f3,f4,f5,f6,nrow=3,ncol=2)
+```
+
+For categorical predictors, we find that although a greater number of players are men, play either defense or midfield, and come from certain countries, a fair number of observations are available across all categories. Hence, all the levels of the categorical data seem to be well represented. 
+
+For the continuous predictors, age seems to have a normal looking distribution, but caps demonstrates large skewness. The data contains few players with a lot of international appearances, and many players with few international appearances. Goals is also heavily skewed, with many players have few or no goals, and some players having a lot of goals. This could cause issues with the normality assumption when fitting a linear model.
+
+Next, we use scatter plots and box and whisker plots to get a rough idea regarding the influence of various predictors on the number of goals.
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+g1 <- ggplot(FIFA_Data,aes(x=pos,y=goals))+geom_boxplot()
+g2 <- ggplot(FIFA_Data,aes(x=age_yrs,y=goals))+geom_point()
+g3 <- ggplot(FIFA_Data,aes(x=caps,y=goals))+geom_point()
+g4 <- ggplot(FIFA_Data,aes(x=country,y=goals))+geom_boxplot()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5,hjust=1))
+g5 <- ggplot(FIFA_Data,aes(x=WorldCup,y=goals))+geom_boxplot()
+ggarrange(ggarrange(g1,g2,g3,g5,nrow=2,ncol=2),g4,nrow=2,ncol=1)
+```
+First Plot - goals vs pos
+
+We observe that number of goals scored by players playing FW are higher than DF and MF. Since the goal keeper is generally not responsible for scoring the goal, the number of goals by goalkeepers is the lowest. Also, from the discontinous outliers, it can be observed that for some players playing at FW and DF positions have scored large number of goals compared with the median goals.
+
+Second plot: goals vs age_yrs
+
+We see that, generally the number of goals seems to increase with the age. This makes intuitive sense as the number of years of experience increases with age. However, after the age of 37 the number of goals reduces. This could be since the physical fitness of a player deteriorates with age.
+
+Third plot: goals versus caps
+
+Number of goals increases as the caps increases, which makes sense as a player who has attended several international appearances has more experience and therefore the number of goals increases. This effect is looks more pronounced when the caps is greater than 100. 
+
+Fourth plot: goals versus WorldCup
+
+The highest number of goals is achieved by women players. Overall, the total number of goals by women are higher than men.  
+
+Fifth plot: goals versus country
+
+There are some countries such as Cananda, USA, and Brazil, where the highest number of goals is higher than other countries. Most countries have highest number of goals between 50-60.
+
+\medskip
+\textbf{\textcolor{blue}{Model Fitting}}
+
+After conducting data exploration we will now fit MLR model. 
+We fit a multiple linear regression model to examine the relationship between goals and all the predictors. 
+
+We consider interactions between the age and pos because although older players seem to have more goals in their lifetime, if the player has always played as a goalkeeper, they may not have as many goals. In other words, the effect of age on goals depends on the position at which a player plays.
+
+Interaction between the predictors Age and WorldCup is considered because the sex of the player can affect the number of goals the player can make at a certain age, older women may have lower bone densities post childbirth affecting their physical ability to score goals.
+
+The predictors Age and country may interact as every country has different nutritional standards this can affect the physical fitness of players as they age. This in turn affects the number of goals a player of a certain age from a specific country may score.
+
+The predictors caps and pos may interact as a player with many international appearances may have a higher number of goals subject to their playing position. A goalkeeper and a forward may both have played 50 tournaments, but the forward would typically have more goals.
+
+The predictors caps and country are also considered to interact as certain countries have historically had stronger soccer teams and more resources for training players, hence, a player from country "A" with 50 international appearances and a player from country "B" with the same number of appearances may have different number of goals.
+
+The predictors WorldCup and caps are not considered to interact, as the sex of the player should not influence how their number of international appearances affect the number of goals they score.
+
+With these details in mind, we set up the below model.
+```{r}
+FIFA.mlr = lm(goals~age_yrs+caps+pos+WorldCup+country+
+                age_yrs:pos+age_yrs:WorldCup+age_yrs:country+
+                caps:pos+caps:country,data=FIFA_Data)
+```
+
+Before making interpretations from the model, we must perform diagnostics and check if there are any unusual observations in the data.
+
+We begin by checking if there are any high leverage points, i.e., if there are any data points that are very far from the center of the whole sample.
+
+```{r}
+fifa.leverages = lm.influence(FIFA.mlr)$hat
+n=dim(FIFA_Data)[1]
+p=length(variable.names(FIFA.mlr))
+fifa.leverages.high = fifa.leverages[fifa.leverages>2*p/n]
+length(fifa.leverages.high)
+
+IQR_goals = IQR(FIFA_Data$goals)
+QT1_goals = quantile(FIFA_Data$goals,0.25)
+QT3_goals = quantile(FIFA_Data$goals,0.75)
+lower_lim_gaols = QT1_goals - IQR_goals
+upper_lim_goals = QT3_goals + IQR_goals
+vector_lim_goals = c(lower_lim_gaols,upper_lim_goals)
+
+fifa.highlev = FIFA_Data[fifa.leverages>2*p/n,]
+fifa.highlev_lower = fifa.highlev[fifa.highlev$goals < vector_lim_goals[1], ]
+fifa.highlev_upper = fifa.highlev[fifa.highlev$goals > vector_lim_goals[2], ]
+fifa.highlev2 = rbind(fifa.highlev_lower,fifa.highlev_upper)
+fifa.highlev2
+dim(fifa.highlev2)[1]
+```
+We observe that there are 102 high leverage points of which 28 are bad high leverage points. Next, we examine if there are some points which do not fit the model as well as others points, i.e., if there are any outliers.
+
+```{r}
+fifa.resid = rstudent(FIFA.mlr)
+fifa.resid.sorted = sort(abs(fifa.resid), decreasing=TRUE)[1:20]
+fifa.resid.sorted
+
+bonferroni_cv = qt(.05/(2*n), n-p-1) 
+bonferroni_cv
+
+length(which(fifa.resid>abs(bonferroni_cv)))
+```
+We see that the bonferroni cv is -4.123 and there are 9 outliers since 9 studentized residuals have a value large than 4.123.
+
+Finally, we check if there are any individual points that affect the model parameters, i.e., influential points
+
+```{r}
+fifa.cooks = cooks.distance(FIFA.mlr)
+sort(fifa.cooks, decreasing = TRUE)[1:10]
+```
+There is 1 observation has cooks distance above 1, so there is one influential point in the data.
+
+We now test if MLR model assumptions are satisfied. 
+First we check if the variance is constant using the visual test and the bp test.
+```{r}
+plot(FIFA.mlr,which=1)
+library(lmtest)
+bptest(FIFA.mlr)
+```
+
+We do not see a football shaped cloud and see that the variance increases with the increase in fitted values.
+
+The hypothesis for the BP test is, 
+
+H0 :the variance is constant
+
+H$\alpha$: the variance is not constant
+
+Since the p-value is less than 0.05, we reject the null and conclude that the variance is not constant.
+
+Next, we check if the error terms are normally distributed by using the following two approaches:-
+
+1) a Q-Q plot
+
+2) a KS test since our n>50
+```{r}
+plot(FIFA.mlr,which=2) #Shows departure from normality at the both ends
+#We use K-S test as the n>50
+ks.test(FIFA.mlr$residuals,"pnorm") #Normality violated 
+```
+From the Q-Q test we see that there is a departure from normality at the lower end and the upper end. 
+
+We also do the KS test with the below hypothesis:
+
+H0: the distribution is normal
+
+H$\alpha$: the distribution is not normal
+
+The p-value of 2.2e-16 is less than 0.05. So, we reject the null hypotheses of normality and conclude that the normality assumption is not satisfied.
+
+Therefore, we try to fix normality using box-cox transformation. For box-cox all the responses should be strictly positive. As some players have 0 goals, we update the goals random variable as "goals+1" and fit a new model. The new model will be passed as an input to the box-cox function.
+
+```{r}
+#trying to fix normality by transformation (does not work as some players have 0 goals)
+FIFA_Data$goals_plus1 = FIFA_Data$goals+1
+FIFA.mlr_plus1 = lm(goals_plus1~age_yrs+caps+pos+WorldCup+country+
+                      age_yrs:pos+age_yrs:WorldCup+age_yrs:country+
+                      caps:pos+caps:country,data=FIFA_Data)
+library(MASS)
+fifa.transformation = boxcox(FIFA.mlr_plus1, lambda=seq(-2,2, length=400))
+lambda <- fifa.transformation$x[which.max(fifa.transformation$y)]
+lambda
+```
+From the box-cox results, we see that the optimal lambda -0.12, we round the value and choose -0.1. Notably, 0 and 1 are not in the confidence interval, so untransformed goals and log-transformed goals should not be used as the response. Fitting a new model with box-cox transformed "goals+1". We use the box-cox formula to transform our model 
+
+##ASK ANAV to write
+
+```{r}
+FIFA_Data$goals_plus1_trans = (FIFA_Data$goals_plus1^(-0.1)-1)/(-0.1)
+FIFA.mlr_plus1_trans = lm(goals_plus1_trans~age_yrs+caps+pos+WorldCup+country+
+                            age_yrs:pos+age_yrs:WorldCup+age_yrs:country+
+                            caps:pos+caps:country,data=FIFA_Data)
+```
+
+Now we check again for normality and variance assumptions again for the new box-cox based model.
+
+```{r}
+plot(FIFA.mlr_plus1_trans,which=1)
+plot(FIFA.mlr_plus1_trans,which=2)
+```
+We can see that the variance and normality assumptions are now satisfied. The variance follows a football kind of a shape, and the Q-Q plot follows a straight line and therefore the normality assumption is satisfied. We do not need to check for independence of error terms (i.e., correlation) as the data we have is not collected in an ordered sequence.
+
+We check for collinearity between continuously distributed predictors in the design matrix. We have two: age and caps
+```{r}
+cor(FIFA_Data$age_yrs,FIFA_Data$caps)
+```
+As the correlation is not very high we can state that there is no issue of collinearity in the design matrix
+
+Rechecking leverages, outliers and influential observations
+
+Leverages:
+```{r}
+fifa.leverages.plus1_trans = lm.influence(FIFA.mlr_plus1_trans)$hat
+fifa.leverages.plus1_trans.high = fifa.leverages.plus1_trans[fifa.leverages.plus1_trans>2*p/n]
+length(fifa.leverages.plus1_trans.high)
+```
+We have 102 high leverage points which we must classify the high leverage values into good and bad.
+
+```{r}
+#classifying into good and bad
+# Calculate the IQR for the dependent variable 
+IQR_goals_plus1_trans = IQR(FIFA_Data$goals_plus1_trans)
+
+#Define a range with its lower limit being (Q1 - IQR) and upper limit being (Q3 + IQR) 
+QT1_goals_plus1_trans = quantile(FIFA_Data$goals_plus1_trans,0.25)
+QT3_goals_plus1_trans = quantile(FIFA_Data$goals_plus1_trans,0.75)
+
+lower_lim_gaols_plus1_trans = QT1_goals_plus1_trans - IQR_goals_plus1_trans
+upper_lim_goals_plus1_trans = QT3_goals_plus1_trans + IQR_goals_plus1_trans
+
+vector_lim_goals_plus1_trans = c(lower_lim_gaols_plus1_trans,upper_lim_goals_plus1_trans)
+
+# Extract observations with high leverage points from the original data frame 
+fifa.highlev.plus1_trans = FIFA_Data[fifa.leverages.plus1_trans>2*p/n,]
+
+# Select only the observations with leverage points outside the range 
+fifa.highlev_lower.plus1_trans = fifa.highlev.plus1_trans[fifa.highlev.plus1_trans$goals_plus1_trans < vector_lim_goals_plus1_trans[1], ]
+fifa.highlev_upper.plus1_trans = fifa.highlev.plus1_trans[fifa.highlev.plus1_trans$goals_plus1_trans > vector_lim_goals_plus1_trans[2], ]
+fifa.highlev2.plus1_trans = rbind(fifa.highlev_lower.plus1_trans,fifa.highlev_upper.plus1_trans)
+fifa.highlev2.plus1_trans
+dim(fifa.highlev2.plus1_trans)[1]
+```
+We find 3 bad high leverage points corresponding to players - Christine Sinclair (captain),Carli Lloyd (co-captain), and Cristiano Ronaldo (captain). All these players are captains are well known to be extraordinarily talented players. Therefore, having them as leverage points makes sense.
+
+Outliers:
+```{r}
+#Outlier detection
+fifa.resid.plus1_trans = rstudent(FIFA.mlr_plus1_trans)
+fifa.resid.sorted.plus1_trans = sort(abs(fifa.resid.plus1_trans), decreasing=TRUE)[1:20]
+fifa.resid.sorted.plus1_trans
+print(abs(bonferroni_cv))
+length(which(fifa.resid.plus1_trans>abs(bonferroni_cv)))
+#No outliers are found
+```
+The abs(bonferroni cv) is 4.124 and none of the points are higher than 4.124.
+
+Influential points:
+
+```{r}
+#Influential observations
+fifa.cooks.plus1_trans = cooks.distance(FIFA.mlr_plus1_trans)
+sort(fifa.cooks.plus1_trans, decreasing = TRUE)[1:10]
+```
+Since none of the observation have a cooks distance greater than 1, we can conclude that there are no influential observations in the transformed model.
+
+Now proceeding to model selection as all model assumptions and diagnostics are okay.
+
+We use sequential anova:
+```{r}
+anova(FIFA.mlr_plus1_trans)
+```
+
+The hypotheses tests in the sequential F-test can be written in a general form for the addition of a certain interaction term (called added term below), categorical variable, or continuous variable as:
+
+H0: Y ~ Existing terms
+
+H$\alpha$: Y ~ Existing terms + Added term
+
+For example, for the last interaction term, i.e., caps:country, the hypothesis test is written as:
+
+H0: transformed goals ~ age_yrs + caps + pos + WorldCup + country + age_yrs:pos + age_yrs:WorldCup + age_yrs:country + caps:pos
+
+H$\alpha$: transformed goals ~ age_yrs + caps + pos + WorldCup + country + age_yrs:pos + age_yrs:WorldCup + age_yrs:country + caps:pos + caps:country
+
+Similarly, for the third line the hypothesis test would be:
+
+H0: transformed goals ~ age_yrs + caps
+
+H$\alpha$: transformed goals ~ age_yrs + caps + pos
+
+
+To check whether the interaction terms are significant we use the above hypothesis tests and check the p-value for all the interaction terms. We see that all the interaction terms are significant at $\alpha$ = 0.05, so we cannot drop any of the variables. Therefore, they need to be retained in the model.
+
+Now we check if the continuous variables are significant, we see that both age_yrs and caps have a p-value less than 0.05. Similarly, we check if the categorical terms are significant.
+
+For categorical variables, we see that pos is significant since the p-value < 0.05. Although WorldCup has a p-value greater than 0.05, we know that all the interaction terms consisting of WorldCup are significant. Therefore, we can not drop WorldCup according to the hierachichal rule.
+
+We now move on to estimating the number of goals scored by a player. For this we pick player number 7: Emelyne Laurent
+```{r}
+Emelyne = FIFA_Data[7,]
+predict.lm(FIFA.mlr_plus1_trans,Emelyne,interval = "confidence")
+predict.lm(FIFA.mlr_plus1_trans,Emelyne,interval = "prediction")
+```
+As the estimated and predicted goals and intervals are transformed variables, we must back-transform them to get the correct results
+
+#FORMULA by ANAV
+
+```{r}
+Estimated = predict.lm(FIFA.mlr_plus1_trans,Emelyne,interval = "confidence")
+Estimated_Back_Transformed = ((Estimated*(-0.1)+1)^(1/(-0.1)))-1
+Estimated_Back_Transformed
+```
+
+```{r}
+Predicted = predict.lm(FIFA.mlr_plus1_trans,Emelyne,interval = "prediction")
+Predicted_Back_Transformed = ((Predicted*(-0.1)+1)^(1/(-0.1)))-1
+Predicted_Back_Transformed
+```
+The estimated and predicted goals are are between 1 and 2. This matches the actual number of goals scored by Emelyne (ie. is 1). We also see that the prediction interval is wider than the estimated interval which is expected since the new error term is independent of the previous n training data points.
+
+We now use the model to draw inferences regarding the influence of different predictors on the number of goals. 
+
+In terms of differences between men and women soccer players when it comes to scoring goals, we find that the interaction term for age and sex (i.e., worldcup) is statistically significant, p-value < 0.05. However, the coefficient for worldcup alone is not significant. Hence, the sex of the player only changes the effect age has on the number of goals. Thus, the slope changes but the intercept does not
+
+We find that the position, as well as interaction of position with number of international appearances and age are significant, p-value < 0.05. Hence, there is an effect of position on the number of goals; both the slope and intercept change.
+
+We can also determine the effect of age on the number of goals by looking at the summary of the trained model; note that the box-cox transformation we applied is a monotonic transformation, and hence, a positive coefficient still means an increase in the response.
+
+```{r}
+summary(FIFA.mlr_plus1_trans)
+```
+
+We see that the beta for age is positive, and hence, age generally increases the number of goals a player can make. However, interactions also influence the effect age has on goals as seen from the sequential ANOVA results. These can be negative and positive depending on the county, pos, sex, etc.
